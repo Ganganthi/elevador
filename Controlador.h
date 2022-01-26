@@ -1,4 +1,8 @@
+#ifndef CONTROLADOR_H
+#define CONTROLADOR_H
+
 #include <iostream>
+#include "Alarme.h"
 
 class Controlador
 {
@@ -10,3 +14,4 @@ public:
 };
 
 
+#endif

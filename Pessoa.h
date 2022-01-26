@@ -1,3 +1,6 @@
+#ifndef PESSOA_H
+#define PESSOA_H
+
 #include <iostream>
 
 class Pessoa
@@ -19,3 +22,4 @@ public:
 
 //? Como a pessoa vai ter acesso ao controlador? (e consequentemente os botoes)
 
+#endif

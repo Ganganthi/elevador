@@ -1,3 +1,6 @@
+#ifndef ALARME_H
+#define ALARME_H
+
 #include <iostream>
 
 class Alarme
@@ -14,3 +17,4 @@ public:
     bool GetAlarme();
 };
 
+#endif

@@ -1,3 +1,6 @@
+#ifndef PORTA_H
+#define PORTA_H
+
 #include <iostream>
 
 class Porta
@@ -22,3 +25,5 @@ public:
 //? Pesssoa passa na porta e reseta o tempo
 
 //? Dessa forma, fechar nao seria usado (talvez com botao de abrir e fechar)
+
+#endif
