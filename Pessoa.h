@@ -3,10 +3,19 @@
 class Pessoa
 {
 private:
-    /* data */
+    enum Estados{
+        parado,
+        esperando_chegar,
+        decidindo_entrar,   //! decidir se esse estado faz sentido
+        dentro_elevador,
+        fora_depois
+    };
+
+    Estados estado_atual;
 public:
     Pessoa(/* args */);
     ~Pessoa();
 };
 
+//? Como a pessoa vai ter acesso ao controlador? (e consequentemente os botoes)
 

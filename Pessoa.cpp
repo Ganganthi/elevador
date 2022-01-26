@@ -1,6 +1,6 @@
 #include "Pessoa.h"
 
-Pessoa::Pessoa(/* args */)
+Pessoa::Pessoa(/* args */):estado_atual(Estados::parado)
 {
 }
 
