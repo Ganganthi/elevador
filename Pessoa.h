@@ -2,6 +2,7 @@
 #define PESSOA_H
 
 #include <iostream>
+#include "Controlador.h"
 
 class Pessoa
 {
@@ -16,7 +17,7 @@ private:
 
     Estados estado_atual;
 public:
-    Pessoa(/* args */);
+    Pessoa(Controlador&, int, int);
     ~Pessoa();
 };
 

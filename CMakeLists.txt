@@ -4,7 +4,7 @@ project(elevador VERSION 0.1.0)
 include(CTest)
 enable_testing()
 
-add_executable(elevador main.cpp)
+add_executable(elevador main.cpp Controlador.cpp Pessoa.cpp Alarme.cpp Porta.cpp Motor.cpp)
 
 set(CPACK_PROJECT_NAME ${PROJECT_NAME})
 set(CPACK_PROJECT_VERSION ${PROJECT_VERSION})
