@@ -16,12 +16,16 @@ private:
     };
 
     Estados estado_atual;
+
+    int origem;
+    int destino;
+    Controlador* elevador_;
 public:
-    Pessoa(Controlador&, int, int);
+    Pessoa(Controlador*, int, int);
     ~Pessoa();
 
     void run(){
-        for(int i=0; i<5; i++) std::cout << 1 <<std::endl;
+        for(int i=0; i<5; i++) std::cout << origem <<std::endl;
     }
 };
 

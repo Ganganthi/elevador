@@ -15,8 +15,10 @@ int main(int, char**) {
     Controlador elevador;
     // Pessoa p(elevador, 1, 5);
 
-    std::thread th(&Pessoa::run, Pessoa(elevador, 2, 3));
+    // std::thread th1(&Pessoa::run, Pessoa(&elevador, 2, 3));
+    // std::thread th2(&Pessoa::run, Pessoa(&elevador, 5, 8));
 
+    std::thread (&Pessoa::run, Pessoa(&elevador, -5, 3)).detach();
     while(1);   // Mantem o codigo funcionando
 
     return 0;
