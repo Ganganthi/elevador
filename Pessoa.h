@@ -19,6 +19,10 @@ private:
 public:
     Pessoa(Controlador&, int, int);
     ~Pessoa();
+
+    void run(){
+        for(int i=0; i<5; i++) std::cout << 1 <<std::endl;
+    }
 };
 
 //? Como a pessoa vai ter acesso ao controlador? (e consequentemente os botoes)

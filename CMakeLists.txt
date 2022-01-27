@@ -5,6 +5,7 @@ include(CTest)
 enable_testing()
 
 add_executable(elevador main.cpp Controlador.cpp Pessoa.cpp Alarme.cpp Porta.cpp Motor.cpp)
+target_link_libraries(elevador -pthread)
 
 set(CPACK_PROJECT_NAME ${PROJECT_NAME})
 set(CPACK_PROJECT_VERSION ${PROJECT_VERSION})
