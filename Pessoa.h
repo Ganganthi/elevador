@@ -2,6 +2,7 @@
 #define PESSOA_H
 
 #include <iostream>
+#include <unistd.h>
 #include "Controlador.h"
 
 class Pessoa
@@ -25,7 +26,11 @@ public:
     ~Pessoa();
 
     void run(){
-        for(int i=0; i<5; i++) std::cout << origem <<std::endl;
+        while(1){
+            elevador_->inc();
+            sleep(3);
+        }
+        // for(int i=0; i<5; i++) std::cout << origem <<std::endl;
     }
 };
 

@@ -6,6 +6,7 @@ Controlador::Controlador(/* args */)
 ,motor_()
 {
     std::cout << "Criando controlador! " << this << std::endl;
+    cont = 0;
 }
 
 Controlador::~Controlador()

@@ -2,6 +2,7 @@
 #define MOTOR_H
 
 #include <iostream>
+#include <mutex>
 
 class Motor
 {
@@ -14,7 +15,7 @@ private:
 
     Estados estado_atual;
 public:
-    Motor(/* args */);
+    Motor();
     ~Motor();
 
     //? Controle do andar atual fica no motor ou controlador?
