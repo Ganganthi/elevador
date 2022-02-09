@@ -4,20 +4,25 @@
 #include <queue>
 #include <mutex>
 #include <chrono>
-
-#include "Alarme.h"
-#include "Controlador.h"
-#include "Motor.h"
-#include "Pessoa.h"
-#include "Porta.h"
+#include <condition_variable>
 
 const int andar_max = 6;            // num max de andares
 const int andar_min = 0;
 bool working = true;
+const uint64_t period_ms = 200;
 const uint64_t t_ms_andar = 2000;   // 2 segundos
+const uint64_t t_ms_porta_aberto = 5000;
+const uint64_t t_ms_porta_fechando = 2000;
+const auto period = std::chrono::microseconds(period_ms * 1000);
+std::mutex m_cout;
 
 uint64_t getTime(){
     return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+}
+
+void Print(std::string str){
+    std::lock_guard<std::mutex> guard(m_cout);
+    std::cout << str << std::endl;
 }
 
 class ListaAndares
@@ -67,8 +72,11 @@ public:
     ~AndarAtual(){}
 
     bool DescerAndar(){
+        std::string str("Descendo Novo Andar -> ");
+        str.append(std::to_string(andar_atual-1));
+        Print(str);
         std::lock_guard<std::mutex> guard(mut);
-        if(andar_atual <= andar_min){
+        if(andar_atual > andar_min){
             andar_atual--;
             return true;
         }else{
@@ -77,8 +85,11 @@ public:
     }
 
     bool SubirAndar(){
+        std::string str("Subindo Novo Andar -> ");
+        str.append(std::to_string(andar_atual+1));
+        Print(str);
         std::lock_guard<std::mutex> guard(mut);
-        if(andar_atual >= andar_max){
+        if(andar_atual < andar_max){
             andar_atual++;
             return true;
         }else{
@@ -107,6 +118,22 @@ public:
     EstadosPorta():estado(EstadosPorta::Estados::fechado){}
     ~EstadosPorta(){}
     void SetEstadoPorta(EstadosPorta::Estados est){
+        std::string str("SetEstadoPorta -> ");
+        switch (est)
+        {
+        case EstadosPorta::aberto:
+            str.append("aberto");
+            break;
+        case EstadosPorta::fechando:
+            str.append("fechando");
+            break;
+        case EstadosPorta::fechado:
+            str.append("fechado");
+            break;
+        default:
+            break;
+        }
+        Print(str);
         std::lock_guard<std::mutex> guard(mut);
         estado = est;
     }
@@ -157,6 +184,20 @@ public:
     EstadosMotor():estado(EstadosMotor::Estados::desligado){}
     ~EstadosMotor(){}
     void SetEstadoMotor(EstadosMotor::Estados est){
+        switch (est)
+        {
+        case desligado:
+            Print(std::string("SetEstadoMotor -> desligado"));
+            break;
+        case descendo:
+            Print(std::string("SetEstadoMotor -> descendo"));
+            break;
+        case subindo:
+            Print(std::string("SetEstadoMotor -> subindo"));
+            break;
+        default:
+            break;
+        }
         std::lock_guard<std::mutex> guard(mut);
         estado = est;
     }
@@ -216,11 +257,53 @@ public:
 };
 
 
-void Elevador(ListaAndares &fila, EstadosMotor &m_estado, EstadosPorta &p_estado)
+void Elevador(ListaAndares &fila, AndarAtual &andar_atual, EstadosMotor &m_estado, EstadosPorta &p_estado, ComandoAbrir &cmd_abrir)
 {
     // Se porta aberta, esperar fechar
     // Se ha elementos na fila, mover
     // Checar o andar, quando chegar, enviar comando de parar motor e abrir porta
+    int andar = andar_atual.GetAndarAtual();
+    int destino = 0;
+    bool movimentando = false;
+    std::mutex lock_period;
+    std::condition_variable cond_var;
+    auto start_time = std::chrono::system_clock::now();
+    while(working){
+        start_time = std::chrono::system_clock::now();
+        if(p_estado.GetEstadoPorta()==EstadosPorta::fechado){
+            if(!movimentando){
+                if(fila.GetProxAndar(destino)){
+                    // tem algo na fila
+                    std::string str("Novo destino -> ");
+                    str.append(std::to_string(destino));
+                    Print(str);
+                    if(destino > andar){
+                        m_estado.SetEstadoMotor(EstadosMotor::subindo);
+                        movimentando = true;
+                    }else if(destino < andar){
+                        m_estado.SetEstadoMotor(EstadosMotor::descendo);
+                        movimentando = true;
+                    }else{
+                        // cmd_abrir.AtivarComando();
+                        p_estado.SetEstadoPorta(EstadosPorta::aberto);
+                    }
+                }else{
+                    // fila vazia
+                }
+            }else{  // movimentando
+                andar = andar_atual.GetAndarAtual();
+                if(andar == destino){
+                    // chegou no destino
+                    m_estado.SetEstadoMotor(EstadosMotor::desligado);
+                    // cmd_abrir.AtivarComando();
+                    p_estado.SetEstadoPorta(EstadosPorta::aberto);
+                    movimentando = false;
+                }
+            }
+        }
+        std::unique_lock<std::mutex> lock(lock_period);
+        cond_var.wait_until(lock, start_time + period);
+    }
 }
 
 void Pessoa(ListaAndares &fila, ComandoAbrir &cmd_abrir){
@@ -233,11 +316,22 @@ void Pessoa(ListaAndares &fila, ComandoAbrir &cmd_abrir){
     
 }
 
+/**
+ * @brief Thread do motor, se o estado do motor for subindo ou descendo, 
+ *          espera t_ms_andar segundos para trocar de andar
+ * 
+ * @param andar_atual 
+ * @param m_estado 
+ */
 void Motor(AndarAtual &andar_atual, EstadosMotor &m_estado){
-    EstadosMotor::Estados estado_anterior = EstadosMotor::Estados::desligado;
+    EstadosMotor::Estados estado_anterior = m_estado.GetEstadoMotor();
     EstadosMotor::Estados estado_atual;
     uint64_t tempo=0, tempo_atual;
+    std::mutex lock_period;
+    std::condition_variable cond_var;
+    auto start_time = std::chrono::system_clock::now();
     while(working){
+        start_time = std::chrono::system_clock::now();
         estado_atual = m_estado.GetEstadoMotor();
         switch (estado_atual)
         {
@@ -270,16 +364,63 @@ void Motor(AndarAtual &andar_atual, EstadosMotor &m_estado){
             break;
         }
         estado_anterior = estado_atual;
+        std::unique_lock<std::mutex> lock(lock_period);
+        cond_var.wait_until(lock, start_time + period);
     }
 }
 
-void Porta(EstadosPorta &p_estado, ComandoAbrir &cmd_abrir){
+void Porta(EstadosPorta &p_estado, ComandoAbrir &cmd_abrir, EstadosMotor &m_estado){
     // Esperar comando de abrir
     // Trocar estado para aberto
     // Ativar timer para fechar a porta
     // Quando alguem passar pela porta, resetar o timer e abrir a porta
     // Dps de x segundos, trocar para fechando, pessoa ainda pode passar nesse estado
     // Dps de x segundos, trocar para fechado
+    uint64_t tempo=0, tempo_atual;
+    EstadosPorta::Estados estado_anterior = p_estado.GetEstadoPorta();
+    EstadosPorta::Estados estado_atual;
+    std::mutex lock_period;
+    std::condition_variable cond_var;
+    auto start_time = std::chrono::system_clock::now();
+    while(working){
+        start_time = std::chrono::system_clock::now();
+        if(m_estado.GetEstadoMotor()==EstadosMotor::desligado){
+            if(cmd_abrir.QueryComando()){
+                tempo = getTime();
+                p_estado.SetEstadoPorta(EstadosPorta::aberto);
+            }else{
+                estado_atual = p_estado.GetEstadoPorta();
+                switch (estado_atual)
+                {
+                case EstadosPorta::aberto:
+                    if(estado_anterior != EstadosPorta::aberto){
+                        tempo = getTime();
+                    }
+                    tempo_atual = getTime();
+                    if(tempo_atual - tempo > t_ms_porta_aberto){
+                        p_estado.SetEstadoPorta(EstadosPorta::fechando);
+                        tempo = getTime();
+                    }
+                    break;
+                case EstadosPorta::fechando:
+                    tempo_atual = getTime();
+                    if(tempo_atual - tempo > t_ms_porta_fechando){
+                        p_estado.SetEstadoPorta(EstadosPorta::fechado);
+                        tempo = getTime();
+                    }
+                    break;
+                case EstadosPorta::fechado:
+                    /* code */
+                    break;
+                default:
+                    break;
+                }
+                estado_anterior = estado_atual;
+            }
+        }
+        std::unique_lock<std::mutex> lock(lock_period);
+        cond_var.wait_until(lock, start_time + period);
+    }
 }
 
 void Alarme(ComandoAlarme &alarme){
@@ -299,10 +440,20 @@ int main(int, char**) {
     ComandoAbrir cmd_abrir;
     ComandoAlarme cmd_alarme;
 
-    // std::thread elevador(Elevador, std::ref(fila_andares), std::ref(m_fila));
+    std::thread elevador(Elevador, std::ref(fila_andares), std::ref(andar_atual), std::ref(estado_motor), std::ref(estado_porta), std::ref(cmd_abrir));
     std::thread motor(Motor, std::ref(andar_atual), std::ref(estado_motor));
+    std::thread porta(Porta, std::ref(estado_porta), std::ref(cmd_abrir), std::ref(estado_motor));
 
-    motor.join();
+    sleep(2);
+    fila_andares.InserirExterno(3);
+    fila_andares.InserirExterno(5);
+    sleep(30);
+    fila_andares.InserirExterno(0);
+    
+    sleep(30);
+    // working = false;
+    sleep(5);
+    elevador.join();
 
     return 0;
 }
